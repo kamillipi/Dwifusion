@@ -7,7 +7,7 @@ function [results] = get_ivim_v4(bvals,data,varargin)
 %         "segmented" fit for D and S0 and then for Dstar and f
 %         "bayes" 2 step grid search for D and S0 and Dstar
 
-p = inputParser; % main branch
+p = inputParser; %branch test
 
 allowedmethods = {'1step','segmented','bayesian'};
 validScalarPosNum = @(x) isnumeric(x) && isscalar(x) && (x > 0);
