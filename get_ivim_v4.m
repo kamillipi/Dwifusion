@@ -44,15 +44,15 @@ sorted_data=reshape(data,table_rows,table_cols);
 
 switch p.Results.mask
     case 0
-        [values_location,~]=find(sum(sorted_data,2)>10000);
-%         disp("Calculating data with sum >1000. " + numel(values_location)/length(sorted_data)*100 + "% of proivded data, which is " + numel(values_location) + " voxels");
+        [values_location,~]=find(sum(sorted_data,2)>1000);
+         disp("Calculating data with sum >1000. " + numel(values_location)/length(sorted_data)*100 + "% of proivded data, which is " + numel(values_location) + " voxels");
     otherwise
         sorted_mask=reshape(p.Results.mask,table_rows,1);
         [values_location,~]=find(sorted_mask>0);
         disp("Using mask, calculating " + numel(values_location)/length(sorted_data)*100 + "% of data, which is " + numel(values_location) + " voxels");
 end
 
-to_calculation=sorted_data(values_location,:)';
+to_calculation=double(sorted_data(values_location,:))';
 calculated_values=zeros(numel(values_location),4);
 
 
@@ -82,8 +82,8 @@ switch p.Results.method
         end
     case "segmented"
         %         disp("Performing segmented fitting");
-        ivimx=bvals(bvals<p.Results.bsplit);
-        nonivimx=bvals(bvals>p.Results.bsplit);
+        ivimx=bvals(bvals<p.Results.bsplit)';
+        nonivimx=bvals(bvals>p.Results.bsplit)';
         fo1 = fitoptions('Method','NonlinearLeastSquares',...
             'StartPoint',[0.0008 max(data,[],'all')],...
             'Lower', [0.0001 0.5*max(data,[],'all')], ...
@@ -96,20 +96,19 @@ switch p.Results.method
             'Upper', [0.33 0.1],...
             'Lower', [0 0]);
         ft2 = fittype(@(f,Dstar,S0,x)(f/(1-f)*S0*exp(-x*Dstar)),'problem','S0','options',fo2);
-        
+        nonivimy=to_calculation(bvals>p.Results.bsplit,:);
+        tissueandivimy=to_calculation(bvals<p.Results.bsplit,:);
         parfor i = 1:length(to_calculation)
-            nonivimy=to_calculation(bvals>p.Results.bsplit,i);
-            tissueandivimy=to_calculation(bvals<p.Results.bsplit,i);
-            [fit1, ~, ~]=fit(nonivimx,nonivimy,ft1);
-            ivimy=tissueandivimy-fit1.S0*exp(-fit1.D*ivimx);
+            [fit1, ~, ~]=fit(nonivimx,nonivimy(:,i),ft1);
+            ivimy=tissueandivimy(:,i)-fit1.S0*exp(-fit1.D*ivimx);
             [fit2, ~, ~]=fit(ivimx,ivimy,ft2,'problem',fit1.S0);
             calculated_values(i,:)=[(fit1.S0/(1-fit2.f)) fit2.f fit2.Dstar fit1.D];
         end
     case "bayesian"
         %         disp("Performing bayesian fitting");
         bsplit=p.Results.bsplit;
-        nonivimx=bvals(bvals>bsplit);
-        ivimx=bvals(bvals<bsplit);
+        nonivimx=bvals(bvals>bsplit)';
+        ivimx=bvals(bvals<bsplit)';
         n1 = numel(nonivimx);
         n2 = numel(ivimx);
         
@@ -118,17 +117,17 @@ switch p.Results.method
         if deviation==0
             deviation=1000;
         end
+        nonivimy=to_calculation(bvals>p.Results.bsplit,:);
         parfor i = 1:numel(values_location)
-            nonivimy=to_calculation(bvals>bsplit,i);
 %           ivimy=to_calculation(bvals<bsplit,i);
-            S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy);
+            S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy(:,i));
             
             w1 = linspace(0.9*S0pred,1.1*S0pred,100); %S0
             w2 = linspace(0.0001,0.01,200); %D
             [vw1,vw2] = meshgrid(w1,w2);
             
             N = length(vw1(:));
-            Y = repmat(nonivimy,1,N);
+            Y = repmat(nonivimy(:,i),1,N);
             S = repmat(vw1(:)',n1,1).*exp(-nonivimx*vw2(:)');
             
             
