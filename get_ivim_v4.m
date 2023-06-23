@@ -23,29 +23,39 @@ ndimensions=numel(dimensions);
 
 switch ndimensions
     case 2
-        table_cols=dimensions(2);
-        table_rows=dimensions(1);
-        D=zeros(dimensions(1),1);
+        if(isstring(p.Results.mask))
+            sorted_data=data;
+            p.Results.mask=-1
+        else
+            table_cols=dimensions(2);
+            table_rows=dimensions(1);
+            D=zeros(dimensions(1),1);
+            sorted_data=reshape(data,table_rows,table_cols);
+        end
     case 3
         table_cols=dimensions(3);
         table_rows=dimensions(1)*dimensions(2);
         D=zeros(dimensions(1),dimensions(2));
+        sorted_data=reshape(data,table_rows,table_cols);
     case 4
         table_cols=dimensions(4);
         table_rows=dimensions(1)*dimensions(2)*dimensions(3);
         D=zeros(dimensions(1),dimensions(2),dimensions(3));
+        sorted_data=reshape(data,table_rows,table_cols);
     otherwise
         disp("Please provide proper data: 2,3,4 dimensional where last dimension corresponds with bvals" + newline)
         results=-1;
         return
 end
 
-sorted_data=reshape(data,table_rows,table_cols);
+
 
 switch p.Results.mask
+    case -1
+        [values_location,~]=find(sum(sorted_data,2)>1);
     case 0
         [values_location,~]=find(sum(sorted_data,2)>1000);
-         disp("Calculating data with sum >1000. " + numel(values_location)/length(sorted_data)*100 + "% of proivded data, which is " + numel(values_location) + " voxels");
+        disp("Calculating data with sum >1000. " + numel(values_location)/length(sorted_data)*100 + "% of proivded data, which is " + numel(values_location) + " voxels");
     otherwise
         sorted_mask=reshape(p.Results.mask,table_rows,1);
         [values_location,~]=find(sorted_mask>0);
@@ -57,13 +67,13 @@ calculated_values=zeros(numel(values_location),4);
 
 
 switch p.Results.method
-%     case "lsqf"
-%         sorted_data=sorted_data';
-%         xes=repmat(bvals,1,length(to_calculation));
-%         fun=@(x,xdata)x(1).*x(2).*exp(-xdata.*x(3))+(1-x(2)).*x(1).*exp(-xdata.*x(4));
-%         x0=[1000,0.05,0.001,0.01];
-%         res=lsqcurvefit(fun,x0,xes,to_calculation);
-        
+    %     case "lsqf"
+    %         sorted_data=sorted_data';
+    %         xes=repmat(bvals,1,length(to_calculation));
+    %         fun=@(x,xdata)x(1).*x(2).*exp(-xdata.*x(3))+(1-x(2)).*x(1).*exp(-xdata.*x(4));
+    %         x0=[1000,0.05,0.001,0.01];
+    %         res=lsqcurvefit(fun,x0,xes,to_calculation);
+
     case "1step"
         %         disp("Performing all parameters fitting");
         %         Fit all parameters
@@ -75,22 +85,22 @@ switch p.Results.method
         %                'MaxIter', 10000, ...
         %                'MaxFunEvals', 10000);
         ft3 = fittype('S0*f*exp(-x*Dstar)+(1-f)*S0*exp(-x*D)','options',fo3);
-        
+
         parfor i=1:numel(values_location)
             [fit3,~,~]=fit(bvals,squeeze(to_calculation(:,i)),ft3);
             calculated_values(i,:)=[fit3.S0 fit3.f fit3.Dstar fit3.D];
         end
     case "segmented"
         %         disp("Performing segmented fitting");
-        ivimx=bvals(bvals<p.Results.bsplit)';
-        nonivimx=bvals(bvals>p.Results.bsplit)';
+        ivimx=bvals(bvals<p.Results.bsplit);
+        nonivimx=bvals(bvals>p.Results.bsplit);
         fo1 = fitoptions('Method','NonlinearLeastSquares',...
             'StartPoint',[0.0008 max(data,[],'all')],...
             'Lower', [0.0001 0.5*max(data,[],'all')], ...
             'Upper', [0.01 max(data,[],'all')]);
-        
+
         ft1 = fittype('S0*exp(-x*D)','options',fo1);
-        
+
         fo2 = fitoptions('Method','NonlinearLeastSquares',...
             'StartPoint',[0.04 0.01],...
             'Upper', [0.33 0.1],...
@@ -107,30 +117,27 @@ switch p.Results.method
     case "bayesian"
         %         disp("Performing bayesian fitting");
         bsplit=p.Results.bsplit;
-        nonivimx=bvals(bvals>bsplit)';
-        ivimx=bvals(bvals<bsplit)';
+        nonivimx=bvals(bvals>bsplit);
+        ivimx=bvals(bvals<bsplit);
         n1 = numel(nonivimx);
         n2 = numel(ivimx);
-        
+
         deviation=std(to_calculation(bvals==0,:),[],'all');
-        
+
         if deviation==0
             deviation=1000;
         end
         nonivimy=to_calculation(bvals>p.Results.bsplit,:);
+        onlyivimy=to_calculation(bvals<p.Results.bsplit,:);
+        Dlist = linspace(0.0001,0.01,200); %D
+        Dstarlist = linspace(0.001,0.02,400); %Dstar
         parfor i = 1:numel(values_location)
-%           ivimy=to_calculation(bvals<bsplit,i);
-            S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy(:,i));
-            
-            w1 = linspace(0.9*S0pred,1.1*S0pred,100); %S0
-            w2 = linspace(0.0001,0.01,200); %D
-            [vw1,vw2] = meshgrid(w1,w2);
-            
+            S0pred=max(to_calculation(:,i));
+            w1 = linspace(0.8*S0pred,S0pred,100); %S0
+            [vw1,vw2] = meshgrid(w1,Dlist);
             N = length(vw1(:));
             Y = repmat(nonivimy(:,i),1,N);
             S = repmat(vw1(:)',n1,1).*exp(-nonivimx*vw2(:)');
-            
-            
             mu = sum((Y-S).^2,1)'/2/deviation^2;
             li = exp(-mu);
             li = li/sum(li(:));
@@ -138,20 +145,20 @@ switch p.Results.method
             ind = find(li==max(li(:)));
             ind = round(median(ind));
             [xindex,yindex]=ind2sub(size(vw1),ind);
-            
+
             S0=w1(yindex);
-            Dp=w2(xindex);
-            
-            
-            onlyivimy=to_calculation(bvals<bsplit,i)-S0*exp(-Dp*ivimx);
-           % w1 = linspace(0.02*max(to_calculation(bvals<bsplit,i)),0.08*max(to_calculation(bvals<bsplit,i)),100); %S0 %S0 ivim part
-            w1 = linspace(1,0.25*max(to_calculation(bvals<bsplit,i)),200); %S0 %S0 ivim part
-            w2 = linspace(0.001,0.02,400); %Dstar
-            
-            [vw1,vw2] = meshgrid(w1,w2);
-            
+            Dp=Dlist(xindex);
+
+
+            tofit=onlyivimy(:,i)-S0*exp(-Dp*ivimx);
+            % w1 = linspace(0.02*max(to_calculation(bvals<bsplit,i)),0.08*max(to_calculation(bvals<bsplit,i)),100); %S0 %S0 ivim part
+            % w1 = linspace(1,0.25*max(to_calculation(bvals<bsplit,i)),200); %S0 %S0 ivim part
+            w1=max(tofit);
+
+            [vw1,vw2] = meshgrid(w1,Dstarlist);
+
             N = length(vw1(:));
-            Y = repmat(onlyivimy,1,N);
+            Y = repmat(tofit,1,N);
             S = repmat(vw1(:)',n2,1).*exp(-ivimx*vw2(:)');
             mu = sum((Y-S).^2,1)'/2/deviation^2;
             li = exp(-mu);
@@ -160,9 +167,9 @@ switch p.Results.method
             ind = find(li==max(li(:)));
             ind = round(median(ind));
             [xindex,yindex]=ind2sub(size(vw1),ind);
-            
+
             f=w1(yindex)/(S0+w1(yindex));
-            Dstar=w2(xindex);
+            Dstar=Dstarlist(xindex);
             calculated_values(i,:)=[(S0+w1(yindex)) f Dstar Dp];
         end
 end
