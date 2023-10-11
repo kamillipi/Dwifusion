@@ -57,7 +57,9 @@ end
 
 to_calculation=double(sorted_data(values_location,:)');
 calculated_values=zeros(numel(values_location),4);
-
+if ~iscolumn(bvals)
+        bvals=bvals';
+end
 
 switch p.Results.method
     %     case "lsqf"
@@ -78,9 +80,8 @@ switch p.Results.method
         %                'MaxIter', 10000, ...
         %                'MaxFunEvals', 10000);
         ft3 = fittype('S0*f*exp(-x*Dstar)+(1-f)*S0*exp(-x*D)','options',fo3);
-        if ~iscolumn(bvals)
-        bvals=bvals';
-        end
+
+        
         
         parfor i=1:numel(values_location)
             [fit3,~,~]=fit(bvals,squeeze(to_calculation(:,i)),ft3);
@@ -121,23 +122,26 @@ switch p.Results.method
     case "bayesian"
         %         disp("Performing bayesian fitting");
         bsplit=p.Results.bsplit;
-        nonivimx=bvals(bvals>bsplit)';
-        ivimx=bvals(bvals<bsplit)';
+
+
+        nonivimx=bvals(bvals>bsplit);
+        ivimx=bvals(bvals<bsplit);
         n1 = numel(nonivimx);
         n2 = numel(ivimx);
 
-        %         deviation=std(to_calculation(find(bvals==0),:)',[],'all');
+        deviation=std(to_calculation(find(bvals==0),:),[],"all");
 
         if deviation==0
             deviation=1000;
         end
+        number_of_points=330;
         parfor i = 1:numel(values_location)
             nonivimy=to_calculation(bvals>bsplit,i);
             %           ivimy=to_calculation(bvals<bsplit,i);
             S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy);
 
-            w1 = linspace(0.9*S0pred,1.1*S0pred,100); %S0
-            w2 = linspace(0.0001,0.01,200); %D
+            w1 = linspace(0.9*S0pred,1.1*S0pred,number_of_points); %S0
+            w2 = linspace(0.0001,0.01,number_of_points); %D
             [vw1,vw2] = meshgrid(w1,w2);
 
             N = length(vw1(:));
@@ -159,8 +163,8 @@ switch p.Results.method
 
             onlyivimy=to_calculation(bvals<bsplit,i)-S0*exp(-Dp*ivimx);
             % w1 = linspace(0.02*max(to_calculation(bvals<bsplit,i)),0.08*max(to_calculation(bvals<bsplit,i)),100); %S0 %S0 ivim part
-            w1 = linspace(1,0.25*max(to_calculation(bvals<bsplit,i)),200); %S0 %S0 ivim part
-            w2 = linspace(0.001,0.02,400); %Dstar
+            w1 = linspace(1,0.25*max(to_calculation(bvals<bsplit,i)),number_of_points); %S0 %S0 ivim part
+            w2 = linspace(0.001,0.02,number_of_points); %Dstar
 
             [vw1,vw2] = meshgrid(w1,w2);
 
