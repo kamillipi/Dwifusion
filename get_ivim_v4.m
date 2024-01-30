@@ -42,22 +42,28 @@ end
 sorted_data=reshape(data,table_rows,table_cols);
 
 if isequal(p.Results.mask,0)
-    mask=max(data,[],ndimensions)>500;
+    mask=max(data,[],ndimensions)>0.01*max(data,[],"all");
     sorted_mask=reshape(mask,table_rows,1);
     [values_location,~]=find(sorted_mask>0);
     disp("Using thresholded mask, calculating " + sum(mask,'all')/numel(mask)*100 + "% of data, which is " + sum(mask,'all') + " voxels");
-    disp("Started at " + datestr(datetime));
+elseif isequal(numel(p.Results.mask),1)
+    mask=max(data,[],ndimensions)>p.Results.mask;
+    sorted_mask=reshape(mask,table_rows,1);
+    [values_location,~]=find(sorted_mask>0);
+    disp("Using thresholded mask, calculating " + sum(mask,'all')/numel(mask)*100 + "% of data, which is " + sum(mask,'all') + " voxels");
+
 else
-    sorted_mask=reshape(p.Results.mask,table_rows,1);
+    sorted_mask=reshape(p.Results.mask,numel(p.Results.mask),1);
+    sorted_mask=repmat(sorted_mask,table_rows/numel(p.Results.mask),1);
     [values_location,~]=find(sorted_mask>0);
     disp("Using provided mask, calculating " + sum(p.Results.mask,'all')/numel(p.Results.mask)*100 + "% of data, which is " + sum(p.Results.mask,'all') + " voxels");
-    disp("Started at " + datestr(datetime));
-end
 
+end
+disp("Started at " + datestr(datetime));
 to_calculation=double(sorted_data(values_location,:)');
 calculated_values=zeros(numel(values_location),4);
 if ~iscolumn(bvals)
-        bvals=bvals';
+    bvals=bvals';
 end
 
 switch p.Results.method
@@ -80,13 +86,15 @@ switch p.Results.method
         %                'MaxFunEvals', 10000);
         ft3 = fittype('S0*f*exp(-x*Dstar)+(1-f)*S0*exp(-x*D)','options',fo3);
 
-        
-        
+    progbar= progressBar(size(to_calculation,2),'pname','Calculating 1step');
+
         parfor i=1:numel(values_location)
             [fit3,~,~]=fit(bvals,squeeze(to_calculation(:,i)),ft3);
             calculated_values(i,:)=[fit3.S0 fit3.f fit3.Dstar fit3.D];
+            progbar.progress
         end
     case "segmented"
+        progbar= progressBar(size(to_calculation,2),'pname','Calculating segmented');
         %         disp("Performing segmented fitting");
         ivimx=bvals(bvals<p.Results.bsplit);
         nonivimx=bvals(bvals>p.Results.bsplit);
@@ -111,6 +119,7 @@ switch p.Results.method
         ft2 = fittype(@(f,Dstar,S0,x)(f/(1-f)*S0*exp(-x*Dstar)),'problem','S0','options',fo2);
 
         parfor i = 1:length(to_calculation)
+            progbar.progress
             nonivimy=to_calculation(bvals>p.Results.bsplit,i);
             tissueandivimy=to_calculation(bvals<p.Results.bsplit,i);
             [fit1, ~, ~]=fit(nonivimx,nonivimy,ft1);
@@ -130,7 +139,9 @@ switch p.Results.method
 
         deviation=std(to_calculation(find(bvals==0),:),[],"all");
         number_of_points=330;
+        progbar= progressBar(size(to_calculation,2),'pname','Calculating grid search');
         parfor i = 1:numel(values_location)
+            progbar.progress
             nonivimy=to_calculation(bvals>bsplit,i);
             %           ivimy=to_calculation(bvals<bsplit,i);
             S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy);
