@@ -78,9 +78,9 @@ switch p.Results.method
         %         disp("Performing all parameters fitting");
         %         Fit all parameters
         fo3 = fitoptions('Method','NonlinearLeastSquares',... % D Dstar S0 fblood
-            'StartPoint',[0.0008 0.009 max(data,[],'all') 0.05 ],...
+            'StartPoint',[0.001 0.01 max(data,[],'all') 0.12 ],...
             'Lower', [0 0 0 0.01], ...
-            'Upper', [0.02 0.2 Inf 0.33]);
+            'Upper', [0.02 0.2 Inf 1]);
         %                'TolFun', 1e-18, ...
         %                'MaxIter', 10000, ...
         %                'MaxFunEvals', 10000);
@@ -118,7 +118,7 @@ switch p.Results.method
             'Lower', [0 0]);
         ft2 = fittype(@(f,Dstar,S0,x)(f/(1-f)*S0*exp(-x*Dstar)),'problem','S0','options',fo2);
 
-        parfor i = 1:length(to_calculation)
+        for i = 1:numel(values_location)
             progbar.progress
             nonivimy=to_calculation(bvals>p.Results.bsplit,i);
             tissueandivimy=to_calculation(bvals<p.Results.bsplit,i);
@@ -138,15 +138,18 @@ switch p.Results.method
         n2 = numel(ivimx);
 
         deviation=std(to_calculation(find(bvals==0),:),[],"all");
+        if deviation == 0
+        deviation=0.01*max(data,[],"all");
+        end
         number_of_points=330;
         progbar= progressBar(size(to_calculation,2),'pname','Calculating grid search');
-        parfor i = 1:numel(values_location)
+        for i = 1:numel(values_location)
             progbar.progress
             nonivimy=to_calculation(bvals>bsplit,i);
             %           ivimy=to_calculation(bvals<bsplit,i);
             S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy);
 
-            w1 = linspace(0.9*S0pred,1.1*S0pred,number_of_points); %S0
+            w1 = linspace(0.8*S0pred,1.4*S0pred,number_of_points); %S0
             w2 = linspace(0.0001,0.01,number_of_points); %D
             [vw1,vw2] = meshgrid(w1,w2);
 
@@ -169,7 +172,7 @@ switch p.Results.method
 
             onlyivimy=to_calculation(bvals<bsplit,i)-S0*exp(-Dp*ivimx);
             % w1 = linspace(0.02*max(to_calculation(bvals<bsplit,i)),0.08*max(to_calculation(bvals<bsplit,i)),100); %S0 %S0 ivim part
-            w1 = linspace(1,0.25*max(to_calculation(bvals<bsplit,i)),number_of_points); %S0 %S0 ivim part
+            w1 = linspace(1,2*max(onlyivimy),number_of_points); %S0 %S0 ivim part
             w2 = linspace(0.001,0.02,number_of_points); %Dstar
 
             [vw1,vw2] = meshgrid(w1,w2);
@@ -190,7 +193,7 @@ switch p.Results.method
             calculated_values(i,:)=[(S0+w1(yindex)) f Dstar Dp];
         end
 end
-imags=zeros(length(sorted_data),4);
+imags=zeros(size(to_calculation,2),4);
 imags(values_location,:)=calculated_values(1:numel(values_location),:);
 S0=reshape(imags(:,1),size(D));
 f=reshape(imags(:,2),size(D));
