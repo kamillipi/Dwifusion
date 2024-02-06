@@ -65,7 +65,7 @@ calculated_values=zeros(numel(values_location),4);
 if ~iscolumn(bvals)
     bvals=bvals';
 end
-
+top_signal=max(data,[],'all');
 switch p.Results.method
     %     case "lsqf"
     %         sorted_data=sorted_data';
@@ -105,11 +105,11 @@ switch p.Results.method
         if size(nonivimx,2)>1
             nonivimx=nonivimx(:);
         end
-        top_signal=max(data,[],'all');
+        
         fo1 = fitoptions('Method','NonlinearLeastSquares',...
-            'StartPoint',[0.0004 0.2*top_signal],...
+            'StartPoint',[0.0004 0.6*top_signal],...
             'Lower', [5e-5 0], ...
-            'Upper', [2e-3 0.5*top_signal]);
+            'Upper', [2e-3 top_signal]);
 
         ft1 = fittype('S0*exp(-x*D)','options',fo1);
 
@@ -148,16 +148,16 @@ switch p.Results.method
         if deviation == 0
         deviation=0.01*max(data,[],"all");
         end
-        number_of_points=330;
+        number_of_points=300;
         progbar= progressBar(size(to_calculation,2),'pname','Calculating grid search');
         parfor i = 1:numel(values_location)
             progbar.progress
             nonivimy=to_calculation(bvals>bsplit,i);
-            %           ivimy=to_calculation(bvals<bsplit,i);
-            S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy);
+            % ivimy=to_calculation(bvals<bsplit,i);
+            
 
-            w1 = linspace(0.8*S0pred,1.4*S0pred,number_of_points); %S0
-            w2 = linspace(0.0001,0.01,number_of_points); %D
+            w1 = linspace(1/exp(-min(nonivimx)*2e-3)*max(nonivimy),1/exp(-min(nonivimx)*5e-5)*max(nonivimy),number_of_points); %S0
+            w2 = linspace(5e-5,2e-3,number_of_points); %D
             [vw1,vw2] = meshgrid(w1,w2);
 
             N = length(vw1(:));
@@ -180,7 +180,7 @@ switch p.Results.method
             onlyivimy=to_calculation(bvals<bsplit,i)-S0*exp(-Dp*ivimx);
             % w1 = linspace(0.02*max(to_calculation(bvals<bsplit,i)),0.08*max(to_calculation(bvals<bsplit,i)),100); %S0 %S0 ivim part
             w1 = linspace(0,max(onlyivimy),number_of_points); %S0 %S0 ivim part
-            w2 = linspace(0.001,0.02,number_of_points); %Dstar
+            w2 = linspace(5e-3,1e-2,number_of_points); %Dstar
 
             [vw1,vw2] = meshgrid(w1,w2);
 
