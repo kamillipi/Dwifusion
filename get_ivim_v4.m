@@ -19,7 +19,7 @@ addParameter(p,'mask',0);
 parse(p,bvals,data,varargin{:});
 dimensions=size(data);
 ndimensions=numel(dimensions);
-number_of_points=200;
+number_of_points=300;
 
 switch ndimensions
     case 2
@@ -156,9 +156,13 @@ switch p.Results.method
             nonivimy=to_calculation(bvals>bsplit,i);
             % ivimy=to_calculation(bvals<bsplit,i);
             
+            S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy);
 
-            w1 = linspace(1/exp(-min(nonivimx)*2e-3)*max(nonivimy),1/exp(-min(nonivimx)*5e-5)*max(nonivimy),number_of_points); %S0
-            w2 = linspace(5e-4,2e-3,number_of_points); %D
+            w1 = linspace(0.9*S0pred,1.1*S0pred,number_of_points); %S0
+            %w2 = linspace(0.0001,0.01,number_of_points); %D
+            %w1 = linspace(0.9/exp(-min(nonivimx)*5e-4)*max(nonivimy),...
+            % 1.1/exp(-min(nonivimx)*2e-3)*max(nonivimy),number_of_points); %S0
+            w2 = linspace(5e-4,2e-3,round(number_of_points*1.2)); %D
             [vw1,vw2] = meshgrid(w1,w2);
 
             N = length(vw1(:));
@@ -180,8 +184,10 @@ switch p.Results.method
 
             onlyivimy=to_calculation(bvals<bsplit,i)-S0*exp(-Dp*ivimx);
             % w1 = linspace(0.02*max(to_calculation(bvals<bsplit,i)),0.08*max(to_calculation(bvals<bsplit,i)),100); %S0 %S0 ivim part
-            w1 = linspace(0,max(onlyivimy),number_of_points); %S0 %S0 ivim part
-            w2 = linspace(5e-3,5e-2,number_of_points); %Dstar
+           % w1 = linspace(0,1.5*(abs(max(onlyivimy))),number_of_points); %S0 %S0 ivim part
+            %w2 = linspace(5e-3,5e-2,number_of_points); %Dstar
+            w1 = linspace(1,0.25*max(to_calculation(bvals<bsplit,i)),number_of_points); %S0 %S0 ivim part
+            w2 = linspace(0.005,0.04,number_of_points); %Dstar
 
             [vw1,vw2] = meshgrid(w1,w2);
 
