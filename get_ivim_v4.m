@@ -200,8 +200,9 @@ switch p.Results.method
             calculated_values(i,:)=[(S0+w1(yindex)) f Dstar Dp];
         end
 end
-imags=zeros(size(to_calculation,2),4);
+imags=zeros(size(sorted_data,1),4);
 imags(values_location,:)=calculated_values(1:numel(values_location),:);
+
 S0=reshape(imags(:,1),size(D));
 f=reshape(imags(:,2),size(D));
 Dstar=reshape(imags(:,3),size(D));
