@@ -65,7 +65,7 @@ calculated_values=zeros(numel(values_location),4);
 if ~iscolumn(bvals)
     bvals=bvals';
 end
-
+top_signal=max(data,[],'all');
 switch p.Results.method
     %     case "lsqf"
     %         sorted_data=sorted_data';
@@ -78,9 +78,9 @@ switch p.Results.method
         %         disp("Performing all parameters fitting");
         %         Fit all parameters
         fo3 = fitoptions('Method','NonlinearLeastSquares',... % D Dstar S0 fblood
-            'StartPoint',[0.0008 0.009 max(data,[],'all') 0.05 ],...
-            'Lower', [0 0 0 0.01], ...
-            'Upper', [0.02 0.2 Inf 0.33]);
+            'StartPoint',[0.0004 0.004 max(data,[],'all') 0.12 ],...
+            'Lower', [5e-5 5e-3 0 0.01], ...
+            'Upper', [2e-3 1e-2 Inf 0.6]);
         %                'TolFun', 1e-18, ...
         %                'MaxIter', 10000, ...
         %                'MaxFunEvals', 10000);
@@ -105,27 +105,34 @@ switch p.Results.method
         if size(nonivimx,2)>1
             nonivimx=nonivimx(:);
         end
+        
         fo1 = fitoptions('Method','NonlinearLeastSquares',...
-            'StartPoint',[0.0008 max(data,[],'all')],...
-            'Lower', [0.0001 0.5*max(data,[],'all')], ...
-            'Upper', [0.01 max(data,[],'all')]);
+            'StartPoint',[0.0004 0.6*top_signal],...
+            'Lower', [5e-5 0], ...
+            'Upper', [2e-3 top_signal]);
 
         ft1 = fittype('S0*exp(-x*D)','options',fo1);
 
+        %fo2 = fitoptions('Method','NonlinearLeastSquares',...
+            % 'StartPoint',[0.04 0.01],...
+            % 'Upper', [0.33 0.1],...
+            % 'Lower', [0 0]);
         fo2 = fitoptions('Method','NonlinearLeastSquares',...
-            'StartPoint',[0.04 0.01],...
-            'Upper', [0.33 0.1],...
-            'Lower', [0 0]);
-        ft2 = fittype(@(f,Dstar,S0,x)(f/(1-f)*S0*exp(-x*Dstar)),'problem','S0','options',fo2);
-
-        parfor i = 1:length(to_calculation)
+            'StartPoint',[0.0008 0.2*max(data,[],'all')],...
+            'Lower', [5e-3 0], ...
+            'Upper', [1e-2 0.4*max(data,[],'all')]);
+        %ft2 = fittype(@(f,Dstar,S0,x)(f/(1-f)*S0*exp(-x*Dstar)),'problem','S0','options',fo2);
+        ft2 = fittype('S0*exp(-x*Dstar)','options',fo2);
+        parfor i = 1:numel(values_location)
             progbar.progress
             nonivimy=to_calculation(bvals>p.Results.bsplit,i);
             tissueandivimy=to_calculation(bvals<p.Results.bsplit,i);
             [fit1, ~, ~]=fit(nonivimx,nonivimy,ft1);
             ivimy=tissueandivimy-fit1.S0*exp(-fit1.D*ivimx);
-            [fit2, ~, ~]=fit(ivimx,ivimy,ft2,'problem',fit1.S0);
-            calculated_values(i,:)=[(fit1.S0/(1-fit2.f)) fit2.f fit2.Dstar fit1.D];
+            %[fit2, ~, ~]=fit(ivimx,ivimy,ft2,'problem',fit1.S0);
+            [fit2, ~, ~]=fit(ivimx,ivimy,ft2);
+            calculated_values(i,:)=[(fit1.S0+fit2.S0) (fit2.S0/(fit1.S0+fit2.S0)) fit2.Dstar fit1.D];
+            %calculated_values(i,:)=[(fit1.S0/(1-fit2.f)) fit2.f fit2.Dstar fit1.D];
         end
     case "bayesian"
         %         disp("Performing bayesian fitting");
@@ -138,16 +145,19 @@ switch p.Results.method
         n2 = numel(ivimx);
 
         deviation=std(to_calculation(find(bvals==0),:),[],"all");
-        number_of_points=330;
+        if deviation == 0
+        deviation=0.01*max(data,[],"all");
+        end
+        number_of_points=300;
         progbar= progressBar(size(to_calculation,2),'pname','Calculating grid search');
         parfor i = 1:numel(values_location)
             progbar.progress
             nonivimy=to_calculation(bvals>bsplit,i);
-            %           ivimy=to_calculation(bvals<bsplit,i);
-            S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy);
+            % ivimy=to_calculation(bvals<bsplit,i);
+            
 
-            w1 = linspace(0.9*S0pred,1.1*S0pred,number_of_points); %S0
-            w2 = linspace(0.0001,0.01,number_of_points); %D
+            w1 = linspace(1/exp(-min(nonivimx)*2e-3)*max(nonivimy),1/exp(-min(nonivimx)*5e-5)*max(nonivimy),number_of_points); %S0
+            w2 = linspace(5e-5,2e-3,number_of_points); %D
             [vw1,vw2] = meshgrid(w1,w2);
 
             N = length(vw1(:));
@@ -169,8 +179,8 @@ switch p.Results.method
 
             onlyivimy=to_calculation(bvals<bsplit,i)-S0*exp(-Dp*ivimx);
             % w1 = linspace(0.02*max(to_calculation(bvals<bsplit,i)),0.08*max(to_calculation(bvals<bsplit,i)),100); %S0 %S0 ivim part
-            w1 = linspace(1,0.25*max(to_calculation(bvals<bsplit,i)),number_of_points); %S0 %S0 ivim part
-            w2 = linspace(0.001,0.02,number_of_points); %Dstar
+            w1 = linspace(0,max(onlyivimy),number_of_points); %S0 %S0 ivim part
+            w2 = linspace(5e-3,1e-2,number_of_points); %Dstar
 
             [vw1,vw2] = meshgrid(w1,w2);
 
@@ -190,8 +200,9 @@ switch p.Results.method
             calculated_values(i,:)=[(S0+w1(yindex)) f Dstar Dp];
         end
 end
-imags=zeros(length(sorted_data),4);
+imags=zeros(size(sorted_data,1),4);
 imags(values_location,:)=calculated_values(1:numel(values_location),:);
+
 S0=reshape(imags(:,1),size(D));
 f=reshape(imags(:,2),size(D));
 Dstar=reshape(imags(:,3),size(D));
