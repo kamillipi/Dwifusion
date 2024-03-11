@@ -5,7 +5,7 @@ function [results] = get_ivim_v4(bvals,data,varargin)
 %data - 2D (x, b values) 3D (x,y,b values) or 4D (x,y,z,b values) with IVIM data
 %method - "1step" Fits all parameters at once
 %         "segmented" fit for D and S0 and then for Dstar and f
-%         "bayes" 2 step grid search for D and S0 and Dstar
+%         "grids" 2 step grid search for D and S0 and Dstar
 
 p = inputParser; %branch test
 
