@@ -21,12 +21,12 @@ dimensions=size(data);
 ndimensions=numel(dimensions);
 number_of_points1=int16(360);
 number_of_points2=int16(300);
-Dstar_min=0.002;
-Dstar_max=0.085;
-D_min=5e-4;
+Dstar_min=0;
+Dstar_max=0.15;
+D_min=0;
 D_max=0.002;
 f_min=0.001;
-f_max=0.5;
+f_max=1;
 switch ndimensions
     case 2
         table_cols=dimensions(2);
@@ -49,7 +49,7 @@ end
 sorted_data=reshape(data,table_rows,table_cols);
 
 if isequal(p.Results.mask,0)
-    mask=max(data,[],ndimensions)>0.01*max(data,[],"all");
+    mask=max(data,[],ndimensions)>0.001*max(data,[],"all");
     sorted_mask=reshape(mask,table_rows,1);
     [values_location,~]=find(sorted_mask>0);
     disp("Using thresholded mask, calculating " + sum(mask,'all')/numel(mask)*100 + "% of data, which is " + sum(mask,'all') + " voxels");
@@ -225,4 +225,5 @@ Dstar(f<0.01)=0;
 D=reshape(imags(:,4),size(D));
 results=cat(ndimensions,S0,f,Dstar,D);
 disp("Ended at " + datestr(datetime));
+
 end
