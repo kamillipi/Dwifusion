@@ -19,12 +19,12 @@ addParameter(p,'mask',0);
 parse(p,bvals,data,varargin{:});
 dimensions=size(data);
 ndimensions=numel(dimensions);
-number_of_points1=int16(360);
+number_of_points1=int16(200);
 number_of_points2=int16(300);
 Dstar_min=0;
-Dstar_max=0.15;
+Dstar_max=0.2;
 D_min=0;
-D_max=0.002;
+D_max=0.005;
 f_min=0.001;
 f_max=1;
 switch ndimensions
@@ -93,7 +93,7 @@ switch p.Results.method
         %                'MaxFunEvals', 10000);
         ft3 = fittype('S0*f*exp(-x*Dstar)+(1-f)*S0*exp(-x*D)','options',fo3);
 
-    progbar= progressBar(size(to_calculation,2),'pname','Calculating 1step');
+        progbar= progressBar(size(to_calculation,2),'pname','Calculating 1step');
 
         parfor i=1:numel(values_location)
             [fit3,~,~]=fit(bvals,squeeze(to_calculation(:,i)),ft3);
@@ -112,7 +112,7 @@ switch p.Results.method
         if size(nonivimx,2)>1
             nonivimx=nonivimx(:);
         end
-        
+
         fo1 = fitoptions('Method','NonlinearLeastSquares',...
             'StartPoint',[1e-3 0.6*top_signal],...
             'Lower', [D_min 0], ...
@@ -121,9 +121,9 @@ switch p.Results.method
         ft1 = fittype('S0*exp(-x*D)','options',fo1);
 
         %fo2 = fitoptions('Method','NonlinearLeastSquares',...
-            % 'StartPoint',[0.04 0.01],...
-            % 'Upper', [0.33 0.1],...
-            % 'Lower', [0 0]);
+        % 'StartPoint',[0.04 0.01],...
+        % 'Upper', [0.33 0.1],...
+        % 'Lower', [0 0]);
         fo2 = fitoptions('Method','NonlinearLeastSquares',...
             'StartPoint',[1e-2 0.2*top_signal],...
             'Lower', [Dstar_min 0], ...
@@ -150,27 +150,25 @@ switch p.Results.method
         ivimx=bvals(bvals<bsplit);
         n1 = numel(nonivimx);
         n2 = numel(ivimx);
-
+        first_ivim_bval=min(nonivimx);
+        max_attenuation=exp(-first_ivim_bval*2.3e-3); % diffusion of free water
         deviation=std(to_calculation(find(bvals==0),:),[],"all");
         if deviation == 0
-        deviation=0.01*max(data,[],"all");
+            deviation=0.01*max(data,[],"all");
         end
-  
+
+
+        w2Dstar = linspace(Dstar_min,Dstar_max,number_of_points2); %Dstar
+        w2D = linspace(D_min,D_max,number_of_points1); %D
         progbar= progressBar(size(to_calculation,2),'pname','Calculating grid search');
         parfor i = 1:numel(values_location)
             progbar.progress
             nonivimy=to_calculation(bvals>bsplit,i);
-            % ivimy=to_calculation(bvals<bsplit,i);
-            
-            %S0pred=1/exp(-min(nonivimx)*0.001)*max(nonivimy);
+            top_signal=1.1*max(nonivimy)/max_attenuation;
 
-            %w1 = linspace(0.5*S0pred,2*S0pred,round(number_of_points*1.2)); %S0
-            w1 = linspace(0.2*top_signal,top_signal,number_of_points1); %S0
-            %w2 = linspace(0.0001,0.01,number_of_points); %D
-            %w1 = linspace(0.9/exp(-min(nonivimx)*5e-4)*max(nonivimy),...
-            % 1.1/exp(-min(nonivimx)*2e-3)*max(nonivimy),number_of_points); %S0
-            w2 = linspace(D_min,D_max,number_of_points1); %D
-            [vw1,vw2] = meshgrid(w1,w2);
+            w1 = linspace(0.7*top_signal,top_signal,number_of_points1); %S0
+
+            [vw1,vw2] = meshgrid(w1,w2D);
 
             N = length(vw1(:));
             Y = repmat(nonivimy,1,N);
@@ -186,33 +184,36 @@ switch p.Results.method
             [xindex,yindex]=ind2sub(size(vw1),ind);
 
             S0=w1(yindex);
-            Dp=w2(xindex);
+            Dp=w2D(xindex);
 
 
             onlyivimy=to_calculation(bvals<bsplit,i)-S0*exp(-Dp*ivimx);
-            % w1 = linspace(0.02*max(to_calculation(bvals<bsplit,i)),0.08*max(to_calculation(bvals<bsplit,i)),100); %S0 %S0 ivim part
-           % w1 = linspace(0,1.5*(abs(max(onlyivimy))),number_of_points); %S0 %S0 ivim part
-            %w2 = linspace(5e-3,5e-2,number_of_points); %Dstar
-            %w1 = linspace(1,0.5*max(to_calculation(bvals<bsplit,i)),number_of_points); %S0 %S0 ivim part
-            w1 = linspace(0.001*top_signal,0.4*top_signal,number_of_points2); %S0 %S0 ivim part
-            w2 = linspace(Dstar_min,Dstar_max,number_of_points2); %Dstar
+            max_ivim_signal=max(onlyivimy);
+            if max_ivim_signal>0
+                w1 = linspace(0.8*max_ivim_signal,1.1*max_ivim_signal,number_of_points2); %S0 %S0 ivim part
 
-            [vw1,vw2] = meshgrid(w1,w2);
+                [vw1,vw2] = meshgrid(w1,w2Dstar);
 
-            N = length(vw1(:));
-            Y = repmat(onlyivimy,1,N);
-            S = repmat(vw1(:)',n2,1).*exp(-ivimx*vw2(:)');
-            mu = sum((Y-S).^2,1)'/2/deviation^2;
-            li = exp(-mu);
-            li = li/sum(li(:));
-            li = reshape(li,size(vw1));
-            ind = find(li==max(li(:)));
-            ind = round(median(ind));
-            [xindex,yindex]=ind2sub(size(vw1),ind);
+                N = length(vw1(:));
+                Y = repmat(onlyivimy,1,N);
+                S = repmat(vw1(:)',n2,1).*exp(-ivimx*vw2(:)');
+                mu = sum((Y-S).^2,1)'/2/deviation^2;
+                li = exp(-mu);
+                li = li/sum(li(:));
+                li = reshape(li,size(vw1));
+                ind = find(li==max(li(:)));
+                ind = round(median(ind));
+                [xindex,yindex]=ind2sub(size(vw1),ind);
 
-            f=w1(yindex)/(S0+w1(yindex));
-            Dstar=w2(xindex);
-            calculated_values(i,:)=[(S0+w1(yindex)) f Dstar Dp];
+                f=w1(yindex)/(S0+w1(yindex));
+                Dstar=w2Dstar(xindex);
+                calculated_values(i,:)=[(S0+w1(yindex)) f Dstar Dp];
+            else
+                Dstar=0;
+                f=0;
+                calculated_values(i,:)=[S0 f Dstar Dp];
+            end
+            
         end
 end
 imags=zeros(size(sorted_data,1),4);
