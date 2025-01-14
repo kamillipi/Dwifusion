@@ -31,7 +31,7 @@ switch ndimensions
     case 2
         table_cols=dimensions(2);
         table_rows=dimensions(1);
-        D=zeros(dimensions(1),1);
+        D=zeros(1,1);
     case 3
         table_cols=dimensions(3);
         table_rows=dimensions(1)*dimensions(2);
@@ -53,21 +53,29 @@ if isequal(p.Results.mask,0)
     sorted_mask=reshape(mask,table_rows,1);
     [values_location,~]=find(sorted_mask>0);
     disp("Using thresholded mask, calculating " + sum(mask,'all')/numel(mask)*100 + "% of data, which is " + sum(mask,'all') + " voxels");
-elseif isequal(numel(p.Results.mask),1)
+elseif isequal(numel(p.Results.mask),1) && p.Results.mask>1
     mask=max(data,[],ndimensions)>p.Results.mask;
     sorted_mask=reshape(mask,table_rows,1);
-    [values_location,~]=find(sorted_mask>0);
+    [values_location,~]=find(sorted_mask>0); 
     disp("Using thresholded mask, calculating " + sum(mask,'all')/numel(mask)*100 + "% of data, which is " + sum(mask,'all') + " voxels");
 
 else
     sorted_mask=reshape(p.Results.mask,numel(p.Results.mask),1);
+    if(table_rows==1||table_cols==1)
+        sorted_data=sorted_data';
+    else
     sorted_mask=repmat(sorted_mask,table_rows/numel(p.Results.mask),1);
+    end
     [values_location,~]=find(sorted_mask>0);
     disp("Using provided mask, calculating " + sum(p.Results.mask,'all')/numel(p.Results.mask)*100 + "% of data, which is " + sum(p.Results.mask,'all') + " voxels");
 
 end
 disp("Started at " + datestr(datetime));
-to_calculation=double(sorted_data(values_location,:)');
+to_calculation=double(sorted_data(values_location,:));
+if iscolumn(to_calculation)
+else
+to_calculation=to_calculation';    
+end
 calculated_values=zeros(numel(values_location),4);
 if ~iscolumn(bvals)
     bvals=bvals';
@@ -161,12 +169,12 @@ switch p.Results.method
         w2Dstar = linspace(Dstar_min,Dstar_max,number_of_points2); %Dstar
         w2D = linspace(D_min,D_max,number_of_points1); %D
         progbar= progressBar(size(to_calculation,2),'pname','Calculating grid search');
-        parfor i = 1:numel(values_location)
+        for i = 1:numel(values_location)
             progbar.progress
             nonivimy=to_calculation(bvals>bsplit,i);
             top_signal=1.1*max(nonivimy)/max_attenuation;
 
-            w1 = linspace(0.7*top_signal,top_signal,number_of_points1); %S0
+            w1 = linspace(0.6*top_signal,top_signal,number_of_points1); %S0
 
             [vw1,vw2] = meshgrid(w1,w2D);
 
@@ -177,7 +185,7 @@ switch p.Results.method
 
             mu = sum((Y-S).^2,1)'/2/deviation^2;
             li = exp(-mu);
-            li = li/sum(li(:));
+            li = exp(-mu)/sum(li(:));
             li = reshape(li,size(vw1));
             ind = find(li==max(li(:)));
             ind = round(median(ind));
@@ -198,8 +206,7 @@ switch p.Results.method
                 Y = repmat(onlyivimy,1,N);
                 S = repmat(vw1(:)',n2,1).*exp(-ivimx*vw2(:)');
                 mu = sum((Y-S).^2,1)'/2/deviation^2;
-                li = exp(-mu);
-                li = li/sum(li(:));
+                li = exp(-mu)/sum(li(:));
                 li = reshape(li,size(vw1));
                 ind = find(li==max(li(:)));
                 ind = round(median(ind));
@@ -222,7 +229,7 @@ imags(values_location,:)=calculated_values(1:numel(values_location),:);
 S0=reshape(imags(:,1),size(D));
 f=reshape(imags(:,2),size(D));
 Dstar=reshape(imags(:,3),size(D));
-Dstar(f<0.01)=0;
+Dstar(f<0.02)=0;
 D=reshape(imags(:,4),size(D));
 results=cat(ndimensions,S0,f,Dstar,D);
 disp("Ended at " + datestr(datetime));
