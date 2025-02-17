@@ -19,10 +19,10 @@ addParameter(p,'mask',0);
 parse(p,bvals,data,varargin{:});
 dimensions=size(data);
 ndimensions=numel(dimensions);
-number_of_points1=int16(200);
+number_of_points1=int16(300);
 number_of_points2=int16(300);
 Dstar_min=0;
-Dstar_max=0.2;
+Dstar_max=0.1;
 D_min=0;
 D_max=0.005;
 f_min=0.001;
@@ -169,12 +169,12 @@ switch p.Results.method
         w2Dstar = linspace(Dstar_min,Dstar_max,number_of_points2); %Dstar
         w2D = linspace(D_min,D_max,number_of_points1); %D
         progbar= progressBar(size(to_calculation,2),'pname','Calculating grid search');
-        for i = 1:numel(values_location)
+        parfor i = 1:numel(values_location)
             progbar.progress
             nonivimy=to_calculation(bvals>bsplit,i);
             top_signal=1.1*max(nonivimy)/max_attenuation;
 
-            w1 = linspace(0.6*top_signal,top_signal,number_of_points1); %S0
+            w1 = linspace(0.6*top_signal,1.1*top_signal,number_of_points1); %S0
 
             [vw1,vw2] = meshgrid(w1,w2D);
 
@@ -198,7 +198,7 @@ switch p.Results.method
             onlyivimy=to_calculation(bvals<bsplit,i)-S0*exp(-Dp*ivimx);
             max_ivim_signal=max(onlyivimy);
             if max_ivim_signal>0
-                w1 = linspace(0.8*max_ivim_signal,1.1*max_ivim_signal,number_of_points2); %S0 %S0 ivim part
+                w1 = linspace(0.6*max_ivim_signal,1*max_ivim_signal,number_of_points2); %S0 %S0 ivim part
 
                 [vw1,vw2] = meshgrid(w1,w2Dstar);
 
@@ -206,6 +206,7 @@ switch p.Results.method
                 Y = repmat(onlyivimy,1,N);
                 S = repmat(vw1(:)',n2,1).*exp(-ivimx*vw2(:)');
                 mu = sum((Y-S).^2,1)'/2/deviation^2;
+                li = exp(-mu);
                 li = exp(-mu)/sum(li(:));
                 li = reshape(li,size(vw1));
                 ind = find(li==max(li(:)));
