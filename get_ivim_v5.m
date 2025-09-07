@@ -169,7 +169,6 @@ switch p.Results.method                               % Select fitting method
 
     case "grid"
         % Grid search fitting with noise estimation
-        
         calculated_values = fit_IVIM_grid(bvals, to_calculation, ...
             D_min, D_max, Dstar_min, Dstar_max, ...
             number_of_points1, number_of_points2, p.Results.bsplit);
