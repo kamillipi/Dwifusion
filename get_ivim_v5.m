@@ -124,9 +124,22 @@ Dstar_min=0.003; D_min=0.000; f_min=0.001; v_min=0;
 Dstar_max=0.400; D_max=0.003; f_max=1.000; v_max=3;
 
 %% Process
+if or(isstring(bvals_filename),ischar(bvals_filename))
+    bvals=load(bvals_filename);                        % Load b-values from file
+elseif isvector(bvals_filename)
+    bvals=bvals_filename;
+else
+    error("Invalid bvals")
+end
 
-bvals=load(bvals_filename);                        % Load b-values from file
-signal_data = niftiread(nifti_filename);           % Load the NIfTI data
+if or(isstring(nifti_filename),ischar(nifti_filename))
+    signal_data = niftiread(nifti_filename);                         % Load nifti from file
+elseif ismatrix(bvals_filename)
+    signal_data = nifti_filename;  
+else
+    error("Invalid data")
+end
+
 if ~iscolumn(bvals)                                % Ensure bvals is a column vector
     bvals=bvals';
 end

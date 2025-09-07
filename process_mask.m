@@ -103,6 +103,9 @@ sorted_data = reshape(signal_data, table_rows, table_cols);
 if mask_action == "calculate"
     orig_size=size(signal_data);
     orig_size=orig_size(1:end-1);
+    if numel(orig_size)==1
+    orig_size = [orig_size 1];
+    end
     if or(isempty(mask),isequal(mask, 0))
         % Automatic mask: threshold at 0.1% of max
         auto_mask = max(signal_data, [], cat_dim) > 0.001 * max(signal_data, [], "all");
