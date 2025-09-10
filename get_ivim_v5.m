@@ -118,8 +118,8 @@ addParameter(p, 'prefix', "IVIM_");         % filename prefix for saved maps
 parse(p, bvals_filename, nifti_filename, varargin{:});
 
 % Initialize parameters
-number_of_points1=int16(400);
-number_of_points2=int16(400);
+number_of_points1=int16(600);
+number_of_points2=int16(600);
 Dstar_min=0.003; D_min=0.000; f_min=0.001; v_min=0;
 Dstar_max=0.400; D_max=0.003; f_max=1.000; v_max=3;
 
