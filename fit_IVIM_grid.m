@@ -64,7 +64,8 @@ function calculated_values = fit_IVIM_grid(bvals, to_calculation, ...
 
     % Grids for D and D*
     w2D     = linspace(D_min,    D_max,     number_of_points1);  % D
-    w2Dstar = linspace(Dstar_min, Dstar_max, number_of_points2);  % D*
+    %w2Dstar = linspace(Dstar_min, Dstar_max, number_of_points2);  % D*
+    w2Dstar = logspace(log10(Dstar_min), log10(Dstar_max), number_of_points2);  % D*
 
 % Precompute exponent tables once (outer products!)
 E_hi = exp( - (nonivimb(:)) * (w2D(:).') );        % [n1 x nD]
@@ -114,27 +115,25 @@ E_lo = exp( - (ivimb(:))    * (w2Dstar(:).') );    % [n2 x nD*]
         onlyivimy = ivimy - S0*exp(-Dp*ivimb);
         max_ivim_signal = max(onlyivimy);
 
-        if max_ivim_signal > 0.02*S0
-            w1b = linspace(0, 1.5*max_ivim_signal, number_of_points2); % S0_ivim candidates
 
-            yb   = onlyivimy(:);             % [n2 x 1]
-            yb2  = sum(yb.^2);               % scalar
-            s2lo = E_lo.' * yb;              % [nD* x 1]
+        w1b = linspace(0, 1.5*max_ivim_signal, number_of_points2); % S0_ivim candidates
 
-            SSE_lo = yb2 - 2*(s2lo * w1b) + (s1_lo * (w1b.^2));  % [nD* x nS0b]
+        yb   = onlyivimy(:);             % [n2 x 1]
+        yb2  = sum(yb.^2);               % scalar
+        s2lo = E_lo.' * yb;              % [nD* x 1]
 
-            SSE_min2 = min(SSE_lo(:));
-            ind_all2 = find(SSE_lo == SSE_min2);
-            ind2     = round(median(ind_all2));
-            [xindex2,yindex2] = ind2sub(size(SSE_lo), ind2);
+        SSE_lo = yb2 - 2*(s2lo * w1b) + (s1_lo * (w1b.^2));  % [nD* x nS0b]
 
-            S0iv  = w1b(yindex2);
-            Dstar = w2Dstar(xindex2);
-            f     = S0iv / (S0 + S0iv);
+        SSE_min2 = min(SSE_lo(:));
+        ind_all2 = find(SSE_lo == SSE_min2);
+        ind2     = round(median(ind_all2));
+        [xindex2,yindex2] = ind2sub(size(SSE_lo), ind2);
 
-            calculated_values(i,:) = [ (S0 + S0iv), f, Dstar, Dp ];
-        else
-            calculated_values(i,:) = [ S0, 0, 0, Dp ];
-        end
+        S0iv  = w1b(yindex2);
+        Dstar = w2Dstar(xindex2);
+        f     = S0iv / (S0 + S0iv);
+
+        calculated_values(i,:) = [ (S0 + S0iv), f, Dstar, Dp ];
+       
     end
 end
