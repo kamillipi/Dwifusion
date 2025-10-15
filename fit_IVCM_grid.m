@@ -86,9 +86,10 @@ function calculated_values = fit_IVCM_grid(bvals, to_calculation, ...
 
     % ---- Progress + output allocation ----
     %progbar = progressBar(size(to_calculation,2),'pname','Calculating grid search');
-    calculated_values = zeros(length(to_calculation),4);
+    n=size(to_calculation,2);
+    calculated_values = zeros(n,4);
 
-    parfor i = 1:length(to_calculation)
+    parfor i = 1:n
         %progbar.progress
         nonivimy = to_calculation(mask_hi, i);
         ivimy    = to_calculation(mask_lo, i);

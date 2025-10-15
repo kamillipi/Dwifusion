@@ -69,10 +69,10 @@ function calculated_values = fit_IVIM_segmented( ...
 
     % Progress bar and output allocation
     %progbar = progressBar(size(to_calculation,2), 'pname','Calculating segmented');
-    calculated_values = zeros(length(to_calculation), 4);
+    n=size(to_calculation,2);
+    calculated_values = zeros(n,4);
 
-    % Parallel segmented fitting
-    parfor i = 1:length(to_calculation)
+    parfor i = 1:n
         %progbar.progress
 
         nonivimy      = to_calculation(bvals > bsplit, i);
