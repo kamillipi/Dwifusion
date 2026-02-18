@@ -58,10 +58,10 @@ function calculated_values = fit_IVIM_1step(bvals, to_calculation, ...
 
     % Progress bar (if available) and output allocation
     %progbar = progressBar(size(to_calculation,2), 'pname','Calculating 1step');
-    calculated_values = zeros(length(to_calculation), 4);
+    n=size(to_calculation,2);
+    calculated_values = zeros(n,4);
 
-    % Parallel fit over selected voxels (columns)
-    parfor i = 1:length(to_calculation)
+    parfor i = 1:n
         [fit3, ~, ~] = fit(bvals, squeeze(to_calculation(:,i)), ft3);
         calculated_values(i,:) = [fit3.S0, fit3.f, fit3.Dstar, fit3.D];
         %progbar.progress
