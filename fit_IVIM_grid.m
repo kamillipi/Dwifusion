@@ -82,16 +82,15 @@ E_lo = exp( - (ivimb(:))    * (w2Dstar(:).') );    % [n2 x nD*]
     calculated_values = zeros(n,4);
 
     parfor i = 1:n
-        %progbar.progress
-
+        %%progbar.progress
         nonivimy = to_calculation(mask_hi, i);
         ivimy    = to_calculation(mask_lo, i);
 
         % ---------- Step 1: Fit D, S0 from high b-values ----------
-        % Build S0 candidate range from data as before
-        %max_attenuation = max(nonivimy)/max(ivimy);
-        top_signal      = max(ivimy);%/max_attenuation;
-        w1 = linspace(0.6*top_signal, top_signal, number_of_points1); % S0 candidates [1 x nS0]
+        max_attenuation = max(nonivimy)/max(ivimy);
+        top_signal      = max(nonivimy)/max_attenuation;
+
+        w1 = linspace(0.75*top_signal, top_signal, number_of_points1); % S0 candidates [1 x nS0]
 
         % Closed-form SSE surface over (D_j, S0_k):
         % SSE(j,k) = sum(y.^2) - 2*S0_k*sum(y.*E(:,j)) + S0_k^2*sum(E(:,j).^2)
@@ -116,8 +115,8 @@ E_lo = exp( - (ivimb(:))    * (w2Dstar(:).') );    % [n2 x nD*]
         onlyivimy = ivimy - S0*exp(-Dp*ivimb);
         max_ivim_signal = max(onlyivimy);
 
-
-        w1b = linspace(0, 1.5*max_ivim_signal, number_of_points2); % S0_ivim candidates
+        if max_ivim_signal > 0.02*S0
+        w1b = linspace(0.5*max_ivim_signal, 1.5*max_ivim_signal, number_of_points2); % S0_ivim candidates
 
         yb   = onlyivimy(:);             % [n2 x 1]
         yb2  = sum(yb.^2);               % scalar
@@ -135,6 +134,8 @@ E_lo = exp( - (ivimb(:))    * (w2Dstar(:).') );    % [n2 x nD*]
         f     = S0iv / (S0 + S0iv);
 
         calculated_values(i,:) = [ (S0 + S0iv), f, Dstar, Dp ];
-       
+       else
+            calculated_values(i,:) = [ S0, 0, 0, Dp ];
+        end
     end
 end

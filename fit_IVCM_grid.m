@@ -88,7 +88,7 @@ function calculated_values = fit_IVCM_grid(bvals, to_calculation, ...
     %progbar = progressBar(size(to_calculation,2),'pname','Calculating grid search');
     n=size(to_calculation,2);
     calculated_values = zeros(n,4);
-
+    
     parfor i = 1:n
         %progbar.progress
         nonivimy = to_calculation(mask_hi, i);
@@ -119,7 +119,7 @@ function calculated_values = fit_IVCM_grid(bvals, to_calculation, ...
         max_ivim_signal = max(onlyivimy);
 
         if max_ivim_signal > 0.02*S0
-            w1b = linspace(0, 1.5*max_ivim_signal, number_of_points2); % S0_ivim candidates
+            w1b = linspace(0.5*max_ivim_signal, 2*max_ivim_signal, number_of_points2); % S0_ivim candidates
 
             yb   = onlyivimy(:);               % [n2 x 1]
             yb2  = sum(yb.^2);                 % scalar
