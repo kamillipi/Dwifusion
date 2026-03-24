@@ -134,10 +134,8 @@ end
 
 if or(isstring(nifti_filename),ischar(nifti_filename))
     signal_data = niftiread(nifti_filename);                         % Load nifti from file
-elseif ismatrix(bvals_filename)
-    signal_data = nifti_filename;  
 else
-    error("Invalid data")
+    signal_data = nifti_filename;  
 end
 
 if ~iscolumn(bvals)                                % Ensure bvals is a column vector

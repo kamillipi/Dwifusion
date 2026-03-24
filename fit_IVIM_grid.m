@@ -87,11 +87,11 @@ E_lo = exp( - (ivimb(:))    * (w2Dstar(:).') );    % [n2 x nD*]
         ivimy    = to_calculation(mask_lo, i);
 
         % ---------- Step 1: Fit D, S0 from high b-values ----------
-        max_attenuation = max(nonivimy)/max(ivimy);
-        top_signal      = max(nonivimy)/max_attenuation;
+        %max_attenuation = max(nonivimy)/max(ivimy);
+        %top_signal      = max(nonivimy)/max_attenuation;
 
-        w1 = linspace(0.75*top_signal, top_signal, number_of_points1); % S0 candidates [1 x nS0]
-
+        %w1 = linspace(0.75*top_signal, top_signal, number_of_points1); % S0 candidates [1 x nS0]
+        w1 = linspace(max(nonivimy), max(ivimy), number_of_points1);
         % Closed-form SSE surface over (D_j, S0_k):
         % SSE(j,k) = sum(y.^2) - 2*S0_k*sum(y.*E(:,j)) + S0_k^2*sum(E(:,j).^2)
         y    = nonivimy(:);                       % [n1 x 1]

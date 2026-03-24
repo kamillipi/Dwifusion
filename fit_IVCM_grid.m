@@ -95,11 +95,11 @@ function calculated_values = fit_IVCM_grid(bvals, to_calculation, ...
         ivimy    = to_calculation(mask_lo, i);
 
         % ---------- Step 1: Fit D, S0 from high b-values ----------
-        max_attenuation = max(nonivimy)/max(ivimy);
-        top_signal      = max(nonivimy)/max_attenuation;
+        %max_attenuation = max(nonivimy)/max(ivimy);
+        %top_signal      = max(nonivimy)/max_attenuation;
 
-        w1 = linspace(0.75*top_signal, top_signal, number_of_points1); % S0 candidates [1 x nS0]
-
+        %w1 = linspace(0.75*top_signal, top_signal, number_of_points1); % S0 candidates [1 x nS0]
+        w1 = linspace(max(nonivimy), max(ivimy), number_of_points1);
         y   = nonivimy(:);                     % [n1 x 1]
         y2  = sum(y.^2);                       % scalar
         s2  = E_hi.' * y;                      % [nD x 1], sum(y.*E(:,j))
